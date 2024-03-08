@@ -1,4 +1,5 @@
-import getUserIdAndKey from "../utils/user";
+// import getUserIdAndKey from "../utils/user";
+import getUser from "../utils/user";
 import utilsCollection from "../utils/collections";
 import { ObjectId } from "mongodb";
 
@@ -37,21 +38,24 @@ class UsersController {
   }
 
   static async getMe(req, res) {
-    const { userId } = await getUserIdAndKey(req);
-    console.log(
-      `user ===========================================================>>>> ${userId}`
-    );
-
-    if (!userId) {
-      return res.status(401).send(`no user found in this id ${userId}`);
-    }
-    const usersCollection = await utilsCollection("users");
-
-    const { email } = await usersCollection.findOne({ _id: ObjectId(userId) });
-    if (!email) {
+    const user = await getUser(req);
+    console.log(`==================> ${user}`);
+    if (!user) {
       return res.status(401).send("Unauthorized");
     }
-    res.status(201).send({ id: userId, email });
+    res.status(201).send({ id: user._id, email: user.email });
+    // const { userId } = await getUserIdAndKey(req);
+
+    // if (!userId) {
+    //   return res.status(401).send(`no user found in this id ${userId}`);
+    // }
+    // const usersCollection = await utilsCollection("users");
+
+    // const { email } = await usersCollection.findOne({ _id: ObjectId(userId) });
+    // if (!email) {
+    //   return res.status(401).send("Unauthorized");
+    // }
+    // res.status(201).send({ id: userId, email });
   }
 }
 

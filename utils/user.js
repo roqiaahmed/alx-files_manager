@@ -1,4 +1,6 @@
 import redisClient from "../utils/redis";
+import utilsCollection from "../utils/collections";
+import { ObjectId } from "mongodb";
 
 const getUserIdAndKey = async (req) => {
   const xToken = req.header("X-Token");
@@ -8,9 +10,31 @@ const getUserIdAndKey = async (req) => {
   if (!user) {
     return {};
   }
-  console.log(`fromuserutils ========> ${user}`);
   const userToken = { key, userId: user };
   return userToken;
 };
 
-export default getUserIdAndKey;
+const getUser = async (req) => {
+  const { userId } = await getUserIdAndKey(req);
+  if (!userId) {
+    return null;
+  }
+
+  let user;
+  try {
+    const usersCollection = await utilsCollection("users");
+    user = await usersCollection.findOne({ _id: ObjectId(userId) });
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return null;
+  }
+
+  if (!user) {
+    return null;
+  }
+
+  return user;
+};
+
+export { getUserIdAndKey, getUser };
+// export default getUserIdAndKey;

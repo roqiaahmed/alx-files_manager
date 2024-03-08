@@ -2,6 +2,7 @@ const express = require("express");
 import AppController from "../controllers/AppController";
 import UsersController from "../controllers/UsersController";
 import AuthController from "../controllers/AuthController";
+import FilesController from "../controllers/FilesController";
 
 const router = express.Router();
 
@@ -33,6 +34,11 @@ router.get("/disconnect", (req, res) => {
 //GET users/me
 router.get("/users/me", (req, res) => {
   UsersController.getMe(req, res);
+});
+
+//POST /files
+router.post("/files", (req, res) => {
+  FilesController.postUpload(req, res);
 });
 
 module.exports = router;
