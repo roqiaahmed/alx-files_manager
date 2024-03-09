@@ -1,5 +1,5 @@
-import base64
 import requests
+import base64
 import sys
 
 file_path = sys.argv[1]
@@ -18,5 +18,5 @@ r_json = {
 }
 r_headers = {"X-Token": sys.argv[2]}
 
-r = requests.post("http://0.0.0.0:5000/files", json=r_json, headers=r_headers)
+r = requests.post("http://0.0.0.0:5004/files", json=r_json, headers=r_headers)
 print(r.json())
