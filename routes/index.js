@@ -50,4 +50,20 @@ router.get("/files/:id", (req, res) => {
 router.get("/files", (req, res) => {
   FilesController.getIndex(req, res);
 });
+
+//PUT /files/:id/publish
+router.put("/files/:id/publish", (req, res) => {
+  FilesController.putPublish(req, res);
+});
+
+//PUT /files/:id/unpublish
+router.put("/files/:id/unpublish", (req, res) => {
+  FilesController.putUnpublish(req, res);
+});
+
+//GET /files/:id/data
+router.get("/files/:id/data", (req, res) => {
+  FilesController.getFile(req, res);
+});
+
 module.exports = router;

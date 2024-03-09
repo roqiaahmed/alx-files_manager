@@ -3,6 +3,7 @@ import utilsCollection from "../utils/collections";
 import { ObjectId } from "mongodb";
 import fs from "fs";
 import { mkdirSync, writeFileSync } from "fs";
+const mimeTypes = require("mime-types");
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
 
@@ -15,9 +16,7 @@ class FilesController {
       return res.status(401).send("Unauthorized");
     }
     const { name, type, data, parentId = 0, isPublic = false } = req.body;
-    console.log(
-      `name ====> ${name}\n type ====> ${type}\n data ====> ${data}\n parentId ====> ${parentId}\n isPublic ====> ${isPublic}\nuserId ===========> ${user._id}`
-    );
+
     if (!name) {
       res.status(400).send({ error: "Missing name" });
     }
@@ -85,7 +84,7 @@ class FilesController {
     try {
       // const fileCollection = await utilsCollection("files");
       const newFile = await fileCollection.insertOne(newFileData);
-      return res.status(201).json(newFile);
+      return res.status(201).json(newFile.ops[0]);
     } catch (error) {
       console.error("Error inserting file into database:", error);
       return res.status(500).send("Error inserting file into database");
@@ -99,7 +98,6 @@ class FilesController {
     }
     const { id: fileId } = req.params;
     const fileCollection = await utilsCollection("files");
-    console.log(user._id);
     const file = await fileCollection.findOne({
       _id: ObjectId(fileId),
       userId: user._id,
@@ -107,7 +105,7 @@ class FilesController {
     if (!file) {
       res.status(404).send({ error: "Not found" });
     }
-    res.status(200).send({ file });
+    res.status(200).send(file);
   }
 
   static async getIndex(req, res) {
@@ -119,6 +117,107 @@ class FilesController {
     const { parentId = 0, page = 1 } = req.query;
     const pageSize = 20;
     const fileCollection = await utilsCollection("files");
+
+    const filesCursor = await fileCollection
+      .aggregate([
+        { $match: { parentId, userId: user._id } },
+        {
+          $facet: {
+            data: [{ $skip: pageSize * (page - 1) }, { $limit: pageSize }],
+          },
+        },
+      ])
+      .toArray();
+    const files = filesCursor[0];
+    console.log(files.data);
+    res.status(200).send(files.data);
+  }
+
+  static async putPublish(req, res) {
+    const user = await getUser(req);
+    if (!user) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { id: fileId } = req.params;
+    const fileCollection = await utilsCollection("files");
+    const file = await fileCollection.findOneAndUpdate(
+      {
+        _id: ObjectId(fileId),
+        userId: user._id,
+      },
+      { $set: { isPublic: true } }
+    );
+    if (!file) {
+      res.status(404).send({ error: "Not found" });
+    }
+    res.status(200).send(file.value);
+  }
+
+  static async putUnpublish(req, res) {
+    const user = await getUser(req);
+    if (!user) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { id: fileId } = req.params;
+    const fileCollection = await utilsCollection("files");
+    const file = await fileCollection.findOneAndUpdate(
+      {
+        _id: ObjectId(fileId),
+        userId: user._id,
+      },
+      { $set: { isPublic: false } }
+    );
+    if (!file) {
+      res.status(404).send({ error: "Not found" });
+    }
+    res.status(200).send(file.value);
+  }
+
+  static async getFile(req, res) {
+    const user = await getUser(req);
+
+    if (!user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { id: fileId } = req.params;
+    const fileCollection = await utilsCollection("files");
+    try {
+      const file = await fileCollection.findOne({
+        _id: ObjectId(fileId),
+      });
+
+      if (!file) {
+        return res.status(404).send({ error: "Not found" });
+      }
+      // console.log(`user._id =======================> ${user._id}`);
+      // console.log(`file.userId =======================> ${file.userId}`);
+      if (!file.isPublic && (!user || user._id !== file.userId)) {
+        return res.status(404).send({ error: "Not found" });
+      }
+
+      if (file.type === "folder") {
+        return res.status(400).send({ error: "A folder doesn't have content" });
+      }
+
+      const filePath = path.join(__dirname, FOLDER_PATH, file.name);
+      // console.log(`=======================> ${filePath}`);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).send({ error: "Not found" });
+      }
+      const mimeType = mimeTypes.lookup(file.name);
+
+      // Read the content of the file
+      const fileContent = fs.readFileSync(filePath);
+
+      // Set response headers with the MIME-type and send the file content
+      res.setHeader("Content-Type", mimeType);
+      res.status(200).send(fileContent);
+    } catch (error) {
+      console.log(error);
+    }
+    const { parentId = 0, page = 1 } = req.query;
+    const pageSize = 20;
 
     const filesCursor = await fileCollection
       .aggregate([
