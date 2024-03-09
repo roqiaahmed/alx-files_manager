@@ -91,5 +91,48 @@ class FilesController {
       return res.status(500).send("Error inserting file into database");
     }
   }
+
+  static async getShow(req, res) {
+    const user = await getUser(req);
+    if (!user) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { id: fileId } = req.params;
+    const fileCollection = await utilsCollection("files");
+    console.log(user._id);
+    const file = await fileCollection.findOne({
+      _id: ObjectId(fileId),
+      userId: user._id,
+    });
+    if (!file) {
+      res.status(404).send({ error: "Not found" });
+    }
+    res.status(200).send({ file });
+  }
+
+  static async getIndex(req, res) {
+    const user = await getUser(req);
+
+    if (!user) {
+      return res.status(401).send("Unauthorized");
+    }
+    const { parentId = 0, page = 1 } = req.query;
+    const pageSize = 20;
+    const fileCollection = await utilsCollection("files");
+
+    const filesCursor = await fileCollection
+      .aggregate([
+        { $match: { parentId, userId: user._id } },
+        {
+          $facet: {
+            data: [{ $skip: pageSize * (page - 1) }, { $limit: pageSize }],
+          },
+        },
+      ])
+      .toArray();
+    const files = filesCursor[0];
+    console.log(files.data);
+    res.status(200).send(files.data);
+  }
 }
 export default FilesController;
