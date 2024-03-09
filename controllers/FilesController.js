@@ -11,13 +11,12 @@ const FOLDER_PATH = process.env.FOLDER_PATH || "/tmp/files_manager";
 class FilesController {
   static async postUpload(req, res) {
     const user = await getUser(req);
-    console.log("=============>" + user._id);
     if (!user) {
       return res.status(401).send("Unauthorized");
     }
-    const { name, type, data, parentId = "0", isPublic = false } = req.body;
+    const { name, type, data, parentId = 0, isPublic = false } = req.body;
     console.log(
-      `name ====> ${name}\n type ====> ${type}\n data ====> ${data}\n parentId ====> ${parentId}\n isPublic ====> ${isPublic}\n`
+      `name ====> ${name}\n type ====> ${type}\n data ====> ${data}\n parentId ====> ${parentId}\n isPublic ====> ${isPublic}\nuserId ===========> ${user._id}`
     );
     if (!name) {
       res.status(400).send({ error: "Missing name" });
@@ -33,7 +32,7 @@ class FilesController {
 
     const fileCollection = await utilsCollection("files");
 
-    if (parentId !== "0") {
+    if (parentId !== 0) {
       const file = await fileCollection.findOne({ _id: ObjectId(parentId) });
       if (!file) {
         res.status(400).send({ error: "Parent not found" });
@@ -48,7 +47,7 @@ class FilesController {
         userId: ObjectId(user._id),
         name,
         type,
-        parentId: ObjectId(parentId),
+        parentId: parentId,
         isPublic,
       });
       return res.status(201).json(newFolder.ops[0]);
@@ -79,7 +78,7 @@ class FilesController {
       name,
       type,
       isPublic,
-      parentId: ObjectId(parentId),
+      parentId: parentId,
       localPath: filePath,
     };
 
