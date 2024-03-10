@@ -1,5 +1,4 @@
-import { MongoClient } from "mongodb";
-import { ObjectId } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 class DBClient {
   constructor() {
@@ -35,6 +34,37 @@ class DBClient {
     const usersCollection = await this.client.db().collection("users");
     const user = await usersCollection.findOne({ _id: ObjectId(id) });
     return user;
+  }
+
+  async getFileById(id) {
+    const filesCollection = await this.client.db().collection("files");
+    const file = await filesCollection.findOne({ _id: ObjectId(id) });
+    return file;
+  }
+
+  async createFile(
+    userId,
+    name,
+    type,
+    parentId = 0,
+    isPublic = false,
+    localPath = ""
+  ) {
+    try {
+      const filesCollection = this.client.db().collection("files");
+      const result = await filesCollection.insertOne({
+        userId: ObjectId(userId),
+        name,
+        type,
+        parentId: parentId === 0 ? parentId : ObjectId(parentId),
+        isPublic,
+        localPath,
+      });
+      return result.ops[0];
+    } catch (error) {
+      console.error("Error creating file:", error);
+      throw error;
+    }
   }
 }
 

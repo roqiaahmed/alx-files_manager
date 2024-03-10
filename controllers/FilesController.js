@@ -1,11 +1,12 @@
-import { getUser } from "../utils/user";
-import utilsCollection from "../utils/collections";
 import { ObjectId } from "mongodb";
-import fs from "fs";
-import { mkdirSync, writeFileSync } from "fs";
-const mimeTypes = require("mime-types");
-import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { mkdirSync, writeFileSync } from "fs";
+import fs from "fs";
+import path from "path";
+import utilsCollection from "../utils/collections";
+import dbClient from "../utils/db";
+const mimeTypes = require("mime-types");
+import { getUser } from "../utils/user";
 
 const FOLDER_PATH = process.env.FOLDER_PATH || "/tmp/files_manager";
 
@@ -13,8 +14,9 @@ class FilesController {
   static async postUpload(req, res) {
     const user = await getUser(req);
     if (!user) {
-      return res.status(401).send("Unauthorized");
+      return res.status(401).send({ error: "Unauthorized" });
     }
+
     const { name, type, data, parentId = 0, isPublic = false } = req.body;
 
     if (!name) {
@@ -29,10 +31,8 @@ class FilesController {
       res.status(400).send({ error: "Missing data" });
     }
 
-    const fileCollection = await utilsCollection("files");
-
     if (parentId !== 0) {
-      const file = await fileCollection.findOne({ _id: ObjectId(parentId) });
+      const file = await dbClient.getFileByParentId(parentId);
       if (!file) {
         res.status(400).send({ error: "Parent not found" });
       }
@@ -41,53 +41,52 @@ class FilesController {
       }
     }
 
-    if (type === "folder") {
-      const newFolder = await fileCollection.insertOne({
-        userId: ObjectId(user._id),
-        name,
-        type,
-        parentId: parentId,
-        isPublic,
-      });
-      return res.status(201).json(newFolder.ops[0]);
-    }
-
-    try {
-      fs.mkdirSync(FOLDER_PATH, { recursive: true });
-    } catch (error) {
-      console.error("Error creating directory:", error);
-      return res.status(500).send("Error creating directory");
-    }
-
+    let localPath = "";
     const fileUUID = uuidv4();
     const filePath = path.join(FOLDER_PATH, fileUUID);
 
-    try {
-      const decodedData = Buffer.from(data, "base64");
-      fs.writeFileSync(filePath, decodedData);
-      console.log("File created successfully:", filePath);
-    } catch (error) {
-      console.error("Error writing file:", error);
-      return res.status(500).send("Error writing file");
+    if (type !== "folder") {
+      try {
+        fs.mkdirSync(FOLDER_PATH, { recursive: true });
+      } catch (error) {
+        console.error("Error creating directory:", error);
+        return res.status(500).send("Error creating directory");
+      }
+
+      try {
+        const decodedData = Buffer.from(data, "base64");
+        fs.writeFileSync(filePath, decodedData);
+        console.log("File created successfully:", filePath);
+      } catch (error) {
+        console.error("Error writing file:", error);
+        return res.status(500).send("Error writing file");
+      }
     }
 
-    // Insert file into database
-    const newFileData = {
-      userId: ObjectId(user._id),
-      name,
-      type,
-      isPublic,
-      parentId: parentId,
-      localPath: filePath,
-    };
+    localPath = filePath;
 
     try {
-      // const fileCollection = await utilsCollection("files");
-      const newFile = await fileCollection.insertOne(newFileData);
-      return res.status(201).json(newFile.ops[0]);
+      const newFile = await dbClient.createFile(
+        user._id,
+        name,
+        type,
+        parentId,
+        isPublic,
+        localPath
+      );
+
+      const responseFile = {
+        id: newFile._id,
+        userId: newFile.userId,
+        name: newFile.name,
+        type: newFile.type,
+        isPublic: newFile.isPublic,
+        parentId: newFile.parentId,
+      };
+
+      return res.status(201).json(responseFile);
     } catch (error) {
-      console.error("Error inserting file into database:", error);
-      return res.status(500).send("Error inserting file into database");
+      console.log(error);
     }
   }
 
