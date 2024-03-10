@@ -1,6 +1,6 @@
 // import getUserIdAndKey from '../utils/user';
 import sha1 from "sha1";
-import getUser from "../utils/user";
+import { getUser } from "../utils/user";
 import utilsCollection from "../utils/collections";
 // import { ObjectId } from 'mongodb';
 
@@ -8,11 +8,11 @@ class UsersController {
   static async postNew(req, res) {
     const { email, password } = req.body;
     if (!email) {
-      res.status(400).send({ error: "Missing email" });
+      return res.status(400).send({ error: "Missing email" });
     }
 
     if (!password) {
-      res.status(400).send({ error: "Missing password" });
+      return res.status(400).send({ error: "Missing password" });
     }
 
     try {
@@ -21,8 +21,7 @@ class UsersController {
       // Check if user already exists
       const existingUser = await usersCollection.findOne({ email });
       if (existingUser) {
-        res.status(400).send({ error: "Already exist" });
-        return;
+        return res.status(400).send({ error: "Already exist" });
       }
       const hashedPassword = sha1(password);
       const newUser = await usersCollection.insertOne({
@@ -40,7 +39,7 @@ class UsersController {
     const user = await getUser(req);
     console.log(`==================> ${user}`);
     if (!user) {
-      return res.status(401).send("Unauthorized");
+      return res.status(401).send({ error: "Unauthorized" });
     }
     res.status(201).send({ id: user._id, email: user.email });
     // const { userId } = await getUserIdAndKey(req);
